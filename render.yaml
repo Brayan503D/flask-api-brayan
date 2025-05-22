@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: flask-api-brayan
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: "python main.py"
+    envVars:
+      - key: PORT
+        value: 10000
