@@ -1,33 +1,26 @@
-from flask import Flask, request
-import requests
-import os
+from flask import Flask, request, jsonify
+from helpers.youtube import descargar_youtube
+from helpers.twitter import descargar_twitter
 
 app = Flask(__name__)
 
-def resolver_url(url):
-    try:
-        res = requests.head(url, allow_redirects=True, timeout=5)
-        return res.url
-    except:
-        return url  # si falla, usa la original
-
 @app.route('/')
 def home():
-    return 'API activa'
+    return 'API de descargas activa'
 
-@app.route('/download')
-def download():
+@app.route('/download/youtube')
+def youtube():
     url = request.args.get('url')
     if not url:
         return 'Falta el parámetro url', 400
+    return jsonify(descargar_youtube(url))
 
-    url_resuelta = resolver_url(url)
-
-    try:
-        res = requests.get(f'https://api.dl.downloadgram.org/?url={url_resuelta}', timeout=10)
-        return res.json()
-    except Exception as e:
-        return {'error': str(e)}, 500
+@app.route('/download/twitter')
+def twitter():
+    url = request.args.get('url')
+    if not url:
+        return 'Falta el parámetro url', 400
+    return jsonify(descargar_twitter(url))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    app.run(host='0.0.0.0', port=10000)
