@@ -18,9 +18,10 @@ def youtube():
 @app.route('/download/youtube/file')
 def youtube_file():
     url = request.args.get('url')
-    if not url:
-        return jsonify({'error': 'Falta el parámetro url'}), 400
-    respuesta = descargar_archivo_youtube(url)
+    itag = request.args.get('itag')
+    if not url or not itag:
+        return jsonify({'error': 'Faltan los parámetros url o itag'}), 400
+    respuesta = descargar_archivo_youtube(url, itag)
     if isinstance(respuesta, dict):
         return jsonify(respuesta), 500
     return respuesta
