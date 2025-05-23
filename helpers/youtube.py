@@ -7,7 +7,7 @@ def descargar_youtube(url):
             'skip_download': True,
             'format': 'best',
             'noplaylist': True,
-            'cookiefile': 'cookies'  # archivo de cookies llamado "cookies"
+            'cookiefile': 'cookies.txt'  # archivo de cookies llamado "cookies"
         }
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
