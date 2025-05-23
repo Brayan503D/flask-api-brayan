@@ -53,10 +53,35 @@ def descargar_archivo_youtube(url):
         if not itag:
             return {"error": "Falta el parámetro itag"}
 
+        # Obtener título y resolución
+        ydl_info_opts = {
+            "quiet": True,
+            "skip_download": True,
+            "noplaylist": True,
+            "cookiefile": "cookies.txt"
+        }
+
+        with YoutubeDL(ydl_info_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formato = next((f for f in info['formats'] if f['format_id'] == itag), None)
+            if not formato:
+                return {"error": f"No se encontró el itag {itag}"}
+
+            titulo = info.get("title", "video")
+            resolucion = formato.get("height", "NA")
+
+            # Limpiar caracteres no válidos del título
+            caracteres_invalidos = r'<>:"/\|?*'
+            titulo_limpio = "".join(c for c in titulo if c not in caracteres_invalidos).strip()
+
+            nombre_archivo = f"{titulo_limpio} - {resolucion}p.mp4"
+            ruta_salida = os.path.join(DOWNLOAD_FOLDER, nombre_archivo)
+
+        # Descargar
         ydl_opts = {
             "format": f"{itag}+bestaudio/best",
             "merge_output_format": "mp4",
-            "outtmpl": f"{DOWNLOAD_FOLDER}/video_{itag}.mp4",
+            "outtmpl": ruta_salida,
             "quiet": True,
             "noplaylist": True,
             "cookiefile": "cookies.txt"
@@ -65,7 +90,7 @@ def descargar_archivo_youtube(url):
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        return send_file(f"{DOWNLOAD_FOLDER}/video_{itag}.mp4", as_attachment=True)
+        return send_file(ruta_salida, as_attachment=True)
     except Exception as e:
         return {'error': str(e)}
 
