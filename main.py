@@ -25,16 +25,6 @@ def youtube_file():
         return jsonify(respuesta), 500
     return respuesta
 
-@app.route('/stream/youtube')
-def youtube_stream():
-    url = request.args.get('url')
-    if not url:
-        return jsonify({'error': 'Falta el parámetro url'}), 400
-    respuesta = reproducir_stream_youtube(url)
-    if isinstance(respuesta, dict):
-        return jsonify(respuesta), 500
-    return respuesta
-
 @app.route('/download/twitter')
 def twitter():
     url = request.args.get('url')
