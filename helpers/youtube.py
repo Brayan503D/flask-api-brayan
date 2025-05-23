@@ -1,10 +1,9 @@
+import uuid
+import tempfile
 from flask import send_file, jsonify
 from yt_dlp import YoutubeDL
 import os
 import traceback
-
-DOWNLOAD_FOLDER = "downloads"
-os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 def obtener_info_youtube(url, host_url=None):
     try:
@@ -49,7 +48,7 @@ def obtener_info_youtube(url, host_url=None):
 
 def descargar_archivo_youtube(url, itag):
     try:
-        # Obtener información y validar formato
+        # Obtener información
         with YoutubeDL({
             "quiet": True,
             "skip_download": True,
@@ -64,10 +63,11 @@ def descargar_archivo_youtube(url, itag):
             titulo = info.get("title", "video")
             resolucion = formato.get("height", "NA")
             titulo_limpio = "".join(c for c in titulo if c.isalnum() or c in " _-").strip()
-            nombre = f"{titulo_limpio} - {resolucion}p.mp4"
-            ruta = os.path.join(DOWNLOAD_FOLDER, nombre)
+            unique_id = str(uuid.uuid4())
+            nombre = f"{titulo_limpio}_{resolucion}p_{unique_id}.mp4"
+            ruta = os.path.join(tempfile.gettempdir(), nombre)
 
-        # Descargar el video
+        # Descargar
         opciones_descarga = {
             "format": itag,
             "outtmpl": ruta,
@@ -80,13 +80,14 @@ def descargar_archivo_youtube(url, itag):
         with YoutubeDL(opciones_descarga) as ydl:
             ydl.download([url])
 
-        # Verificar si el archivo existe
         if not os.path.isfile(ruta):
             print("Archivo no generado:", ruta)
             return jsonify({"error": "El archivo no fue generado correctamente."}), 500
 
         print("Archivo generado correctamente:", ruta)
-        return send_file(ruta, as_attachment=True)
+        response = send_file(ruta, as_attachment=True)
+        os.remove(ruta)  # Borrar después de enviar
+        return response
 
     except Exception:
         error_trace = traceback.format_exc()
