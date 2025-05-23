@@ -1,4 +1,4 @@
-from flask import send_file
+from flask import send_file, jsonify, request
 from yt_dlp import YoutubeDL
 import os
 import traceback
@@ -6,7 +6,7 @@ import traceback
 DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-def obtener_info_youtube(url):
+def obtener_info_youtube(url, host_url=None):
     try:
         opciones = {
             "quiet": True,
@@ -26,6 +26,7 @@ def obtener_info_youtube(url):
                     "itag": f["format_id"],
                     "resolucion": f["height"],
                     "filesize_mb": round(size / 1024 / 1024, 2),
+                    "descargar_url": f"{host_url}download/youtube/file?url={url}&itag={f['format_id']}" if host_url else None
                 })
 
         formatos.sort(key=lambda x: x["resolucion"])
@@ -79,3 +80,17 @@ def descargar_archivo_youtube(url, itag):
     except Exception as e:
         traceback.print_exc()
         return {"error": f"Error al descargar el video: {str(e)}"}
+
+
+# RUTA FLASK (en tu archivo principal app.py o similar)
+
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+@app.route('/download/youtube')
+def youtube():
+    url = request.args.get('url')
+    if not url:
+        return 'Falta el parámetro url', 400
+    return jsonify(obtener_info_youtube(url, host_url=request.host_url))
