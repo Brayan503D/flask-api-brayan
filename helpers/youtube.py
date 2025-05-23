@@ -21,7 +21,6 @@ def obtener_info_youtube(url):
 
             formatos_disponibles = []
             for f in info['formats']:
-                # Solo video mp4 con resolución válida (y que puede combinarse con audio)
                 if (
                     f.get('vcodec') != 'none' and 
                     f.get('ext') == 'mp4' and 
@@ -29,7 +28,10 @@ def obtener_info_youtube(url):
                 ):
                     formatos_disponibles.append({
                         'itag': f['format_id'],
-                        'resolucion': f['height']
+                        'resolucion': f['height'],
+                        'vcodec': f.get('vcodec'),
+                        'filesize': f.get('filesize', 0),
+                        'tbr': f.get('tbr', 0)
                     })
 
             formatos_disponibles.sort(key=lambda x: x['resolucion'])
@@ -42,7 +44,10 @@ def obtener_info_youtube(url):
             return {
                 'title': info.get('title'),
                 'thumbnail': info.get('thumbnail'),
-                'formatos_disponibles': [f"{f['resolucion']}p (itag: {f['itag']})" for f in formatos_disponibles],
+                'formatos_disponibles': [
+                    f"{f['resolucion']}p | itag: {f['itag']} | codec: {f['vcodec']} | tamaño: {round(f['filesize'] / 1024 / 1024, 2)} MB | bitrate: {int(f['tbr'])} kbps"
+                    for f in formatos_disponibles
+                ],
                 **apis_descarga
             }
     except Exception as e:
@@ -54,7 +59,6 @@ def descargar_archivo_youtube(url):
         if not itag:
             return {"error": "Falta el parámetro itag"}
 
-        # Descargar video con el itag dado y combinar con el mejor audio
         ydl_opts = {
             "format": f"{itag}+bestaudio/best",
             "merge_output_format": "mp4",
