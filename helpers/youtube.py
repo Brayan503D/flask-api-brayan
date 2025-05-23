@@ -50,9 +50,10 @@ def descargar_archivo_youtube(url):
         if not itag:
             return {"error": "Falta el parámetro itag"}
 
+        # Descargar video con el itag dado y combinar con el mejor audio
         ydl_opts = {
-            "format": f"{itag}+bestaudio/best",  # Mezcla video con audio
-            "merge_output_format": "mp4",        # Salida combinada en mp4
+            "format": f"{itag}+bestaudio/best",
+            "merge_output_format": "mp4",
             "outtmpl": f"{DOWNLOAD_FOLDER}/video_{itag}.mp4",
             "quiet": True,
             "noplaylist": True,
@@ -61,6 +62,7 @@ def descargar_archivo_youtube(url):
 
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+
         return send_file(f"{DOWNLOAD_FOLDER}/video_{itag}.mp4", as_attachment=True)
     except Exception as e:
         return {'error': str(e)}
