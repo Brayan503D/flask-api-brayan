@@ -18,6 +18,12 @@ def obtener_info_youtube(url, host_url=None):
         with YoutubeDL(opciones) as ydl:
             info = ydl.extract_info(url, download=False)
 
+        # Asegurar que host_url tenga valor
+        if not host_url:
+            host_url = "https://api-downloader-2cuz.onrender.com/"
+        elif not host_url.endswith("/"):
+            host_url += "/"
+
         formatos = []
         for f in info.get("formats", []):
             if f.get("vcodec") != "none" and f.get("ext") == "mp4" and f.get("height"):
@@ -26,7 +32,7 @@ def obtener_info_youtube(url, host_url=None):
                     "itag": f["format_id"],
                     "resolucion": f["height"],
                     "filesize_mb": round(size / 1024 / 1024, 2),
-                    "descargar_url": f"{host_url}download/youtube/file?url={url}&itag={f['format_id']}" if host_url else None
+                    "descargar_url": f"{host_url}download/youtube/file?url={url}&itag={f['format_id']}"
                 })
 
         formatos.sort(key=lambda x: x["resolucion"])
@@ -81,8 +87,7 @@ def descargar_archivo_youtube(url, itag):
         traceback.print_exc()
         return {"error": f"Error al descargar el video: {str(e)}"}
 
-
-# RUTAS FLASK
+# RUTA FLASK (en tu archivo principal app.py o similar)
 
 from flask import Flask, jsonify, request
 
