@@ -3,6 +3,7 @@ from flask import Flask, send_file, request, jsonify
 import os
 import ssl
 import socket
+import traceback
 
 app = Flask(__name__)
 
@@ -23,12 +24,8 @@ def obtener_info_youtube(url):
 
             formatos_disponibles = []
             for f in info.get('formats', []):
-                if (
-                    f.get('vcodec') != 'none' and
-                    f.get('ext') == 'mp4' and
-                    f.get('height') is not None
-                ):
-                    filesize = f.get('filesize', 0) or 0
+                if f.get('vcodec') != 'none' and f.get('ext') == 'mp4' and f.get('height'):
+                    filesize = f.get('filesize') or 0
                     formatos_disponibles.append({
                         'itag': f['format_id'],
                         'resolucion': f['height'],
@@ -55,14 +52,13 @@ def descargar_archivo_youtube(url):
         if not itag:
             return jsonify({"error": "Falta el parámetro itag"}), 400
 
-        ydl_info_opts = {
+        # Obtener info
+        with YoutubeDL({
             "quiet": True,
             "skip_download": True,
             "noplaylist": True,
             "cookiefile": "cookies.txt"
-        }
-
-        with YoutubeDL(ydl_info_opts) as ydl:
+        }) as ydl:
             info = ydl.extract_info(url, download=False)
             formato = next((f for f in info.get('formats', []) if f['format_id'] == itag), None)
             if not formato:
@@ -70,19 +66,18 @@ def descargar_archivo_youtube(url):
 
             titulo = info.get("title", "video")
             resolucion = formato.get("height", "NA")
-
             caracteres_invalidos = r'<>:"/\|?*'
             titulo_limpio = "".join(c for c in titulo if c not in caracteres_invalidos).strip()
-
             nombre_archivo = f"{titulo_limpio} - {resolucion}p.mp4"
             ruta_salida = os.path.join(DOWNLOAD_FOLDER, nombre_archivo)
 
+        # Descargar video
         ydl_opts = {
             "format": itag,
-            "merge_output_format": "mp4",
             "outtmpl": ruta_salida,
             "quiet": True,
             "noplaylist": True,
+            "merge_output_format": "mp4",
             "cookiefile": "cookies.txt"
         }
 
@@ -90,13 +85,22 @@ def descargar_archivo_youtube(url):
             with YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
         except (ssl.SSLError, socket.error) as net_err:
-            return jsonify({"error": f"Error de conexión de red/SSL: {str(net_err)}"}), 503
+            return jsonify({"error": f"Error de red/SSL: {str(net_err)}"}), 503
+        except Exception as e:
+            if os.path.exists(ruta_salida):
+                os.remove(ruta_salida)
+            app.logger.error(f"Error al descargar el video: {str(e)}")
+            traceback.print_exc()
+            return jsonify({"error": f"No se pudo descargar el archivo. {str(e)}"}), 500
 
         if not os.path.isfile(ruta_salida):
-            return jsonify({"error": "Error al descargar el archivo"}), 500
+            return jsonify({"error": "El archivo no fue generado"}), 500
 
         return send_file(ruta_salida, as_attachment=True)
+
     except Exception as e:
+        app.logger.error(f"Error inesperado en la descarga: {str(e)}")
+        traceback.print_exc()
         return jsonify({'error': f'Error interno: {str(e)}'}), 500
 
 @app.route("/info/youtube")
@@ -118,7 +122,8 @@ def download_youtube():
 
 @app.errorhandler(Exception)
 def manejar_errores_globales(e):
-    app.logger.error(f"Error inesperado: {str(e)}")
+    app.logger.error(f"Error global: {str(e)}")
+    traceback.print_exc()
     return jsonify({"error": "Error interno en el servidor"}), 500
 
 if __name__ == "__main__":
