@@ -77,9 +77,9 @@ def descargar_archivo_youtube(url):
             nombre_archivo = f"{titulo_limpio} - {resolucion}p.mp4"
             ruta_salida = os.path.join(DOWNLOAD_FOLDER, nombre_archivo)
 
-        # Descargar
+        # Descargar - usa solo el itag directamente para evitar problemas
         ydl_opts = {
-            "format": f"{itag}+bestaudio/best",
+            "format": itag,
             "merge_output_format": "mp4",
             "outtmpl": ruta_salida,
             "quiet": True,
@@ -89,6 +89,10 @@ def descargar_archivo_youtube(url):
 
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+
+        # Validar que el archivo se creó
+        if not os.path.isfile(ruta_salida):
+            return {"error": "Error al descargar el archivo"}
 
         return send_file(ruta_salida, as_attachment=True)
     except Exception as e:
@@ -108,8 +112,7 @@ def download_youtube():
         return {"error": "Falta el parámetro url"}
     return descargar_archivo_youtube(url)
 
-print(f"App escuchando en el puerto {port}")
-
 if __name__ == "__main__":
-port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"App escuchando en el puerto {port}")
+    app.run(host="0.0.0.0", port=port)
