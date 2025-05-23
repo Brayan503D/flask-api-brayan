@@ -26,7 +26,6 @@ def obtener_info_youtube(url, host_url=None):
                     "itag": f["format_id"],
                     "resolucion": f["height"],
                     "filesize_mb": round(size / 1024 / 1024, 2),
-                    "url": f.get("url"),  # Añadida la URL del formato directo
                     "descargar_url": f"{host_url}download/youtube/file?url={url}&itag={f['format_id']}" if host_url else None
                 })
 
@@ -83,7 +82,7 @@ def descargar_archivo_youtube(url, itag):
         return {"error": f"Error al descargar el video: {str(e)}"}
 
 
-# RUTA FLASK (app.py o similar)
+# RUTAS FLASK
 
 from flask import Flask, jsonify, request
 
@@ -95,3 +94,11 @@ def youtube():
     if not url:
         return 'Falta el parámetro url', 400
     return jsonify(obtener_info_youtube(url, host_url=request.host_url))
+
+@app.route('/download/youtube/file')
+def descargar_youtube_file():
+    url = request.args.get('url')
+    itag = request.args.get('itag')
+    if not url or not itag:
+        return jsonify({"error": "Faltan los parámetros url o itag"}), 400
+    return descargar_archivo_youtube(url, itag)
