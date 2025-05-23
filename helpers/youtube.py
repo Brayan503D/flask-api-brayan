@@ -21,11 +21,15 @@ def obtener_info_youtube(url):
 
             formatos_disponibles = []
             for f in info['formats']:
-                # Acepta solo formatos mp4 que tengan video (aunque no tengan audio)
-                if f.get('vcodec') != 'none' and f.get('ext') == 'mp4':
+                # Solo video mp4 con resolución válida (y que puede combinarse con audio)
+                if (
+                    f.get('vcodec') != 'none' and 
+                    f.get('ext') == 'mp4' and 
+                    f.get('height') is not None
+                ):
                     formatos_disponibles.append({
                         'itag': f['format_id'],
-                        'resolucion': f.get('height', 0)
+                        'resolucion': f['height']
                     })
 
             formatos_disponibles.sort(key=lambda x: x['resolucion'])
