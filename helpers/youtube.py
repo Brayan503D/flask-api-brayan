@@ -56,7 +56,21 @@ def reproducir_stream_youtube(url):
             info = ydl.extract_info(url, download=False)
             video_url = info.get("url")
 
-        r = requests.get(video_url, stream=True)
-        return Response(r.iter_content(chunk_size=1024), content_type="video/mp4")
+        # Pasar la cabecera Range al servidor de YouTube
+        headers = {}
+        if 'Range' in request.headers:
+            headers['Range'] = request.headers['Range']
+
+        r = requests.get(video_url, headers=headers, stream=True)
+
+        return Response(
+            r.iter_content(chunk_size=1024),
+            status=r.status_code,
+            content_type=r.headers.get("Content-Type", "video/mp4"),
+            headers={
+                key: value for key, value in r.headers.items()
+                if key.lower() in ["content-length", "content-range", "accept-ranges", "content-type"]
+            }
+        )
     except Exception as e:
         return {'error': str(e)}
