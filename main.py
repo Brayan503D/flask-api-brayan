@@ -1,57 +1,46 @@
-from yt_dlp import YoutubeDL
-import requests
-from flask import send_file, Response
-import os
+from flask import Flask, request, jsonify
+from helpers.youtube import obtener_info_youtube, descargar_archivo_youtube, reproducir_stream_youtube
+from helpers.twitter import descargar_twitter
 
-DOWNLOAD_FOLDER = "downloads"
-os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+app = Flask(__name__)
 
-def obtener_info_youtube(url):
-    try:
-        ydl_opts = {
-            'quiet': True,
-            'skip_download': True,
-            'format': 'best',
-            'noplaylist': True,
-            'cookiefile': 'cookies.txt'
-        }
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return {
-                'title': info.get('title'),
-                'url': info.get('url'),
-                'thumbnail': info.get('thumbnail')
-            }
-    except Exception as e:
-        return {'error': str(e)}
+@app.route('/')
+def home():
+    return 'API de descargas activa'
 
-def descargar_archivo_youtube(url):
-    try:
-        ydl_opts = {
-            "format": "18",
-            "outtmpl": f"{DOWNLOAD_FOLDER}/video.mp4",
-            "quiet": True,
-            "noplaylist": True,
-        }
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return send_file(f"{DOWNLOAD_FOLDER}/video.mp4", as_attachment=True)
-    except Exception as e:
-        return {'error': str(e)}
+@app.route('/download/youtube')
+def youtube():
+    url = request.args.get('url')
+    if not url:
+        return 'Falta el parámetro url', 400
+    return jsonify(obtener_info_youtube(url))
 
-def reproducir_stream_youtube(url):
-    try:
-        ydl_opts = {
-            "format": "18",
-            "quiet": True,
-            "skip_download": True,
-            "noplaylist": True,
-        }
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            video_url = info.get("url")
-        
-        r = requests.get(video_url, stream=True)
-        return Response(r.iter_content(chunk_size=1024), content_type="video/mp4")
-    except Exception as e:
-        return {'error': str(e)}
+@app.route('/download/youtube/file')
+def youtube_file():
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'Falta el parámetro url'}), 400
+    respuesta = descargar_archivo_youtube(url)
+    if isinstance(respuesta, dict):
+        return jsonify(respuesta), 500
+    return respuesta
+
+@app.route('/stream/youtube')
+def youtube_stream():
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'Falta el parámetro url'}), 400
+    respuesta = reproducir_stream_youtube(url)
+    if isinstance(respuesta, dict):
+        return jsonify(respuesta), 500
+    return respuesta
+
+@app.route('/download/twitter')
+def twitter():
+    url = request.args.get('url')
+    if not url:
+        return 'Falta el parámetro url', 400
+    return jsonify(descargar_twitter(url))
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=10000)
