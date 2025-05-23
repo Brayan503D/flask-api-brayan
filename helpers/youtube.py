@@ -1,6 +1,6 @@
 from yt_dlp import YoutubeDL
 import requests
-from flask import send_file, Response
+from flask import send_file, Response, request
 import os
 
 DOWNLOAD_FOLDER = "downloads"
@@ -11,16 +11,19 @@ def obtener_info_youtube(url):
         ydl_opts = {
             'quiet': True,
             'skip_download': True,
-            'format': 'best',
+            'format': '18',
             'noplaylist': True,
             'cookiefile': 'cookies.txt'
         }
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            video_url = info.get('url')
             return {
                 'title': info.get('title'),
-                'url': info.get('url'),
-                'thumbnail': info.get('thumbnail')
+                'thumbnail': info.get('thumbnail'),
+                'url': video_url,
+                'descargar_api': f"{request.host_url}download/youtube/file?url={url}",
+                'reproducir_api': f"{request.host_url}stream/youtube?url={url}"
             }
     except Exception as e:
         return {'error': str(e)}
@@ -50,7 +53,7 @@ def reproducir_stream_youtube(url):
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             video_url = info.get("url")
-        
+
         r = requests.get(video_url, stream=True)
         return Response(r.iter_content(chunk_size=1024), content_type="video/mp4")
     except Exception as e:
