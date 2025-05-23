@@ -1,4 +1,4 @@
-from flask import send_file, jsonify, request
+from flask import send_file, jsonify
 from yt_dlp import YoutubeDL
 import os
 import traceback
@@ -18,7 +18,6 @@ def obtener_info_youtube(url, host_url=None):
         with YoutubeDL(opciones) as ydl:
             info = ydl.extract_info(url, download=False)
 
-        # Asegurar que host_url tenga valor
         if not host_url:
             host_url = "https://api-downloader-2cuz.onrender.com/"
         elif not host_url.endswith("/"):
@@ -43,12 +42,14 @@ def obtener_info_youtube(url, host_url=None):
             "formatos_disponibles": formatos
         }
 
-    except Exception as e:
-        traceback.print_exc()
-        return {"error": f"No se pudo obtener información: {str(e)}"}
+    except Exception:
+        error_trace = traceback.format_exc()
+        print(error_trace)
+        return {"error": "No se pudo obtener información del video.", "trace": error_trace}
 
 def descargar_archivo_youtube(url, itag):
     try:
+        # Obtener información y validar formato
         with YoutubeDL({
             "quiet": True,
             "skip_download": True,
@@ -58,14 +59,15 @@ def descargar_archivo_youtube(url, itag):
             info = ydl.extract_info(url, download=False)
             formato = next((f for f in info["formats"] if f["format_id"] == itag), None)
             if not formato:
-                return {"error": f"No se encontró el itag {itag}"}
+                return jsonify({"error": f"No se encontró el itag {itag}"}), 400
 
             titulo = info.get("title", "video")
             resolucion = formato.get("height", "NA")
-            titulo_limpio = "".join(c for c in titulo if c not in r'<>:"/\|?*').strip()
+            titulo_limpio = "".join(c for c in titulo if c.isalnum() or c in " _-").strip()
             nombre = f"{titulo_limpio} - {resolucion}p.mp4"
             ruta = os.path.join(DOWNLOAD_FOLDER, nombre)
 
+        # Descargar el video
         opciones_descarga = {
             "format": itag,
             "outtmpl": ruta,
@@ -78,32 +80,15 @@ def descargar_archivo_youtube(url, itag):
         with YoutubeDL(opciones_descarga) as ydl:
             ydl.download([url])
 
+        # Verificar si el archivo existe
         if not os.path.isfile(ruta):
-            return {"error": "El archivo no fue generado correctamente"}
+            print("Archivo no generado:", ruta)
+            return jsonify({"error": "El archivo no fue generado correctamente."}), 500
 
+        print("Archivo generado correctamente:", ruta)
         return send_file(ruta, as_attachment=True)
 
-    except Exception as e:
-        traceback.print_exc()
-        return {"error": f"Error al descargar el video: {str(e)}"}
-
-# RUTA FLASK (en tu archivo principal app.py o similar)
-
-from flask import Flask, jsonify, request
-
-app = Flask(__name__)
-
-@app.route('/download/youtube')
-def youtube():
-    url = request.args.get('url')
-    if not url:
-        return 'Falta el parámetro url', 400
-    return jsonify(obtener_info_youtube(url, host_url=request.host_url))
-
-@app.route('/download/youtube/file')
-def descargar_youtube_file():
-    url = request.args.get('url')
-    itag = request.args.get('itag')
-    if not url or not itag:
-        return jsonify({"error": "Faltan los parámetros url o itag"}), 400
-    return descargar_archivo_youtube(url, itag)
+    except Exception:
+        error_trace = traceback.format_exc()
+        print("ERROR en descarga:", error_trace)
+        return jsonify({"error": "Error al descargar el video.", "trace": error_trace}), 500
