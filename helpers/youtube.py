@@ -24,7 +24,7 @@ def descargar_archivo_youtube(url, itag):
             titulo_limpio = "".join(c for c in titulo if c.isalnum() or c in " _-").strip()
             unique_id = str(uuid.uuid4())
             nombre = f"{titulo_limpio}_{resolucion}p_{unique_id}.mp4"
-            ruta = os.path.join(tempfile.gettempdir(), nombre)
+            ruta = f"/tmp/{nombre}"
 
         # Descargar
         opciones_descarga = {
