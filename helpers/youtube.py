@@ -35,6 +35,7 @@ def descargar_archivo_youtube(url):
             "outtmpl": f"{DOWNLOAD_FOLDER}/video.mp4",
             "quiet": True,
             "noplaylist": True,
+            "cookiefile": "cookies.txt"
         }
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
@@ -49,6 +50,7 @@ def reproducir_stream_youtube(url):
             "quiet": True,
             "skip_download": True,
             "noplaylist": True,
+            "cookiefile": "cookies.txt"
         }
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
