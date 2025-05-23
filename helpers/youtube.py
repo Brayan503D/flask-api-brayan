@@ -1,6 +1,8 @@
 from yt_dlp import YoutubeDL
-from flask import Flask, send_file, request
+from flask import Flask, send_file, request, jsonify
 import os
+import ssl
+import socket
 
 app = Flask(__name__)
 
@@ -20,10 +22,10 @@ def obtener_info_youtube(url):
             info = ydl.extract_info(url, download=False)
 
             formatos_disponibles = []
-            for f in info['formats']:
+            for f in info.get('formats', []):
                 if (
-                    f.get('vcodec') != 'none' and 
-                    f.get('ext') == 'mp4' and 
+                    f.get('vcodec') != 'none' and
+                    f.get('ext') == 'mp4' and
                     f.get('height') is not None
                 ):
                     filesize = f.get('filesize', 0) or 0
@@ -45,15 +47,14 @@ def obtener_info_youtube(url):
                 'formatos_disponibles': formatos_disponibles
             }
     except Exception as e:
-        return {'error': str(e)}
+        return {'error': f'Error obteniendo info: {str(e)}'}
 
 def descargar_archivo_youtube(url):
     try:
         itag = request.args.get("itag")
         if not itag:
-            return {"error": "Falta el parámetro itag"}
+            return jsonify({"error": "Falta el parámetro itag"}), 400
 
-        # Obtener título y resolución
         ydl_info_opts = {
             "quiet": True,
             "skip_download": True,
@@ -63,21 +64,19 @@ def descargar_archivo_youtube(url):
 
         with YoutubeDL(ydl_info_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            formato = next((f for f in info['formats'] if f['format_id'] == itag), None)
+            formato = next((f for f in info.get('formats', []) if f['format_id'] == itag), None)
             if not formato:
-                return {"error": f"No se encontró el itag {itag}"}
+                return jsonify({"error": f"No se encontró el itag {itag}"}), 404
 
             titulo = info.get("title", "video")
             resolucion = formato.get("height", "NA")
 
-            # Limpiar caracteres no válidos del título
             caracteres_invalidos = r'<>:"/\|?*'
             titulo_limpio = "".join(c for c in titulo if c not in caracteres_invalidos).strip()
 
             nombre_archivo = f"{titulo_limpio} - {resolucion}p.mp4"
             ruta_salida = os.path.join(DOWNLOAD_FOLDER, nombre_archivo)
 
-        # Descargar - usa solo el itag directamente para evitar problemas
         ydl_opts = {
             "format": itag,
             "merge_output_format": "mp4",
@@ -87,30 +86,40 @@ def descargar_archivo_youtube(url):
             "cookiefile": "cookies.txt"
         }
 
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except (ssl.SSLError, socket.error) as net_err:
+            return jsonify({"error": f"Error de conexión de red/SSL: {str(net_err)}"}), 503
 
-        # Validar que el archivo se creó
         if not os.path.isfile(ruta_salida):
-            return {"error": "Error al descargar el archivo"}
+            return jsonify({"error": "Error al descargar el archivo"}), 500
 
         return send_file(ruta_salida, as_attachment=True)
     except Exception as e:
-        return {'error': str(e)}
+        return jsonify({'error': f'Error interno: {str(e)}'}), 500
 
 @app.route("/info/youtube")
 def info_youtube():
     url = request.args.get("url")
     if not url:
-        return {"error": "Falta el parámetro url"}
-    return obtener_info_youtube(url)
+        return jsonify({"error": "Falta el parámetro url"}), 400
+    resultado = obtener_info_youtube(url)
+    if 'error' in resultado:
+        return jsonify(resultado), 500
+    return jsonify(resultado)
 
 @app.route("/download/youtube/file")
 def download_youtube():
     url = request.args.get("url")
     if not url:
-        return {"error": "Falta el parámetro url"}
+        return jsonify({"error": "Falta el parámetro url"}), 400
     return descargar_archivo_youtube(url)
+
+@app.errorhandler(Exception)
+def manejar_errores_globales(e):
+    app.logger.error(f"Error inesperado: {str(e)}")
+    return jsonify({"error": "Error interno en el servidor"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
