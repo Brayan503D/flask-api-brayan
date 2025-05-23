@@ -26,29 +26,23 @@ def obtener_info_youtube(url):
                     f.get('ext') == 'mp4' and 
                     f.get('height') is not None
                 ):
+                    filesize = f.get('filesize', 0) or 0
                     formatos_disponibles.append({
                         'itag': f['format_id'],
                         'resolucion': f['height'],
                         'vcodec': f.get('vcodec'),
-                        'filesize': f.get('filesize', 0),
-                        'tbr': f.get('tbr', 0)
+                        'filesize_bytes': filesize,
+                        'filesize_mb': round(filesize / 1024 / 1024, 2),
+                        'bitrate_kbps': int(f.get('tbr', 0)),
+                        'descargar_url': f"{request.host_url}download/youtube/file?url={url}&itag={f['format_id']}"
                     })
 
             formatos_disponibles.sort(key=lambda x: x['resolucion'])
 
-            apis_descarga = {}
-            for i, f in enumerate(formatos_disponibles):
-                clave = "descargar_api" if i == 0 else f"descargar_api{i+1}"
-                apis_descarga[clave] = f"{request.host_url}download/youtube/file?url={url}&itag={f['itag']}"
-
             return {
                 'title': info.get('title'),
                 'thumbnail': info.get('thumbnail'),
-                'formatos_disponibles': [
-                    f"{f['resolucion']}p | itag: {f['itag']} | codec: {f['vcodec']} | tamaño: {round(f['filesize'] / 1024 / 1024, 2)} MB | bitrate: {int(f['tbr'])} kbps"
-                    for f in formatos_disponibles
-                ],
-                **apis_descarga
+                'formatos_disponibles': formatos_disponibles
             }
     except Exception as e:
         return {'error': str(e)}
