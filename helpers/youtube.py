@@ -19,10 +19,10 @@ def obtener_info_youtube(url):
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
-            video_url = info.get('url')
             formatos_disponibles = []
             for f in info['formats']:
-                if f.get('vcodec') != 'none' and f.get('acodec') != 'none' and f.get('ext') == 'mp4':
+                # Acepta solo formatos mp4 que tengan video (aunque no tengan audio)
+                if f.get('vcodec') != 'none' and f.get('ext') == 'mp4':
                     formatos_disponibles.append({
                         'itag': f['format_id'],
                         'resolucion': f.get('height', 0)
@@ -38,7 +38,6 @@ def obtener_info_youtube(url):
             return {
                 'title': info.get('title'),
                 'thumbnail': info.get('thumbnail'),
-                'url': video_url,
                 'formatos_disponibles': [f"{f['resolucion']}p (itag: {f['itag']})" for f in formatos_disponibles],
                 **apis_descarga
             }
@@ -52,12 +51,14 @@ def descargar_archivo_youtube(url):
             return {"error": "Falta el parámetro itag"}
 
         ydl_opts = {
-            "format": itag,
+            "format": f"{itag}+bestaudio/best",  # Mezcla video con audio
+            "merge_output_format": "mp4",        # Salida combinada en mp4
             "outtmpl": f"{DOWNLOAD_FOLDER}/video_{itag}.mp4",
             "quiet": True,
             "noplaylist": True,
             "cookiefile": "cookies.txt"
         }
+
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         return send_file(f"{DOWNLOAD_FOLDER}/video_{itag}.mp4", as_attachment=True)
