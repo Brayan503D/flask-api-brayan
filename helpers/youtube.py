@@ -26,6 +26,7 @@ def obtener_info_youtube(url, host_url=None):
                     "itag": f["format_id"],
                     "resolucion": f["height"],
                     "filesize_mb": round(size / 1024 / 1024, 2),
+                    "url": f.get("url"),  # Añadida la URL del formato directo
                     "descargar_url": f"{host_url}download/youtube/file?url={url}&itag={f['format_id']}" if host_url else None
                 })
 
@@ -82,7 +83,7 @@ def descargar_archivo_youtube(url, itag):
         return {"error": f"Error al descargar el video: {str(e)}"}
 
 
-# RUTA FLASK (en tu archivo principal app.py o similar)
+# RUTA FLASK (app.py o similar)
 
 from flask import Flask, jsonify, request
 
